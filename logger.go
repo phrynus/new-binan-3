@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	INFO  = "INFO]  "
+	INFO  = "INFO] "
 	DEBUG = "DEBUG] "
-	WARN  = "WARN]  "
+	WARN  = "WARN] "
 	ERROR = "ERROR] "
 )
 
