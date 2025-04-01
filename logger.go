@@ -30,6 +30,7 @@ type Logger struct {
 	warnLogger  *log.Logger
 	debugLogger *log.Logger
 	infoLogger  *log.Logger
+	panicLogger *log.Logger
 }
 
 func NewRotatingFile(filename string, maxSize int64) (*RotatingFile, error) {
@@ -71,7 +72,6 @@ func (rf *RotatingFile) rotate() error {
 		rf.file.Close()
 	}
 
-	// 查找可用的分割文件序号
 	i := 1
 	for {
 		newName := fmt.Sprintf("%s.%d", rf.baseName, i)
@@ -100,7 +100,6 @@ func NewLogger(filename string, maxSize int64) (*Logger, error) {
 		return nil, err
 	}
 
-	// 创建多目标Writer
 	multiWriter := io.MultiWriter(rf, os.Stderr)
 
 	return &Logger{
@@ -109,6 +108,7 @@ func NewLogger(filename string, maxSize int64) (*Logger, error) {
 		warnLogger:  log.New(multiWriter, "", 0),
 		debugLogger: log.New(multiWriter, "", 0),
 		infoLogger:  log.New(rf, "", 0),
+		panicLogger: log.New(multiWriter, "", 0),
 	}, nil
 }
 
@@ -116,15 +116,44 @@ func (l *Logger) formatHeader(level string) string {
 	now := time.Now()
 	return fmt.Sprintf("[PHRYNUS][%s %s][%s",
 		now.Format("2006/01/02"),
-		now.Format("15:04:05.000"),
+		now.Format("15:04:05.000000"),
 		level)
 }
 
-func (l *Logger) log(logger *log.Logger, level, msg string) {
-	logger.Output(3, l.formatHeader(level)+msg)
+func (l *Logger) log(logger *log.Logger, level string, v ...interface{}) {
+	msg := fmt.Sprint(v...)
+	logger = log.New(logger.Writer(), l.formatHeader(level), 0)
+	logger.Output(3, msg)
 }
 
-func (l *Logger) Info(msg string)  { l.log(l.infoLogger, INFO, msg) }
-func (l *Logger) Debug(msg string) { l.log(l.debugLogger, DEBUG, msg) }
-func (l *Logger) Warn(msg string)  { l.log(l.warnLogger, WARN, msg) }
-func (l *Logger) Error(msg string) { l.log(l.errorLogger, ERROR, msg) }
+func (l *Logger) logf(logger *log.Logger, level string, format string, v ...interface{}) {
+	msg := fmt.Sprintf(format, v...)
+	logger = log.New(logger.Writer(), l.formatHeader(level), 0)
+	logger.Output(3, msg)
+}
+
+// 常规日志方法
+func (l *Logger) Info(v ...interface{})  { l.log(l.infoLogger, INFO, v...) }
+func (l *Logger) Debug(v ...interface{}) { l.log(l.debugLogger, DEBUG, v...) }
+func (l *Logger) Warn(v ...interface{})  { l.log(l.warnLogger, WARN, v...) }
+func (l *Logger) Error(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	l.log(l.panicLogger, ERROR, s)
+	defer func() {
+		recover()
+	}()
+	panic(s)
+}
+
+// 格式化日志方法
+func (l *Logger) Infof(format string, v ...interface{})  { l.logf(l.infoLogger, INFO, format, v...) }
+func (l *Logger) Debugf(format string, v ...interface{}) { l.logf(l.debugLogger, DEBUG, format, v...) }
+func (l *Logger) Warnf(format string, v ...interface{})  { l.logf(l.warnLogger, WARN, format, v...) }
+func (l *Logger) Errorf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	l.logf(l.panicLogger, ERROR, "%s", s)
+	defer func() {
+		recover()
+	}()
+	panic(s)
+}
