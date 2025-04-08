@@ -9,10 +9,11 @@ import (
 var config Config
 
 type Config struct {
-	APIKey    string `json:"api_key"`
-	SecretKey string `json:"secret_key"`
-	Proxy     string `json:"proxy"` // 代理
-	Debug     bool   `json:"debug"` // 调试
+	APIKey    string   `json:"api_key"`
+	SecretKey string   `json:"secret_key"`
+	Proxy     string   `json:"proxy"`  // 代理
+	Debug     bool     `json:"debug"`  // 调试
+	Blacks    []string `json:"blacks"` // 黑名单
 }
 
 func init() {

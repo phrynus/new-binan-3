@@ -2,5 +2,6 @@
   "api_key": "",
   "secret_key": "",
   "proxy": "",
-  "debug": true
+  "debug": false,
+  "blacks": ["SOL", "1000PEPE"]
 }

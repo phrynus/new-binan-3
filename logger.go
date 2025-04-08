@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 const (
@@ -18,9 +20,9 @@ const (
 )
 
 var levelNames = []string{
-	"INFO",
+	"INFO ",
 	"DEBUG",
-	"WARN",
+	"WARN ",
 	"ERROR",
 }
 
@@ -31,6 +33,7 @@ type LogConfig struct {
 	FlushInterval  time.Duration
 	StdoutLevels   map[int]bool
 	FileWriterOnly bool
+	ColorOutput    bool // Whether to use colored output
 }
 
 type RotatingWriter struct {
@@ -47,6 +50,7 @@ type Logger struct {
 	closeCh   chan struct{}
 	wg        sync.WaitGroup
 	stdoutMap map[int]bool
+	colorMap  map[int]*color.Color
 }
 
 type logEntry struct {
@@ -72,6 +76,14 @@ func LoggerNew(logConfig LogConfig) (*Logger, error) {
 		logChan:   make(chan *logEntry, logConfig.BufferSize),
 		closeCh:   make(chan struct{}),
 		stdoutMap: make(map[int]bool),
+		colorMap: map[int]*color.Color{
+			INFO:  color.BgRGB(39, 174, 96).AddRGB(255, 255, 255), // 绿色背景，白色文字
+			DEBUG: color.BgRGB(55, 66, 250).AddRGB(255, 255, 255), // 蓝色背景，白色文字
+			WARN:  color.BgRGB(255, 128, 0).AddRGB(255, 255, 255), // 黄色背景，白色文字
+			ERROR: color.BgRGB(231, 76, 60).AddRGB(255, 255, 255), // 红色背景，白色文字
+			4:     color.RGB(255, 255, 255),                       // Title 白色背景，黑色文字
+			5:     color.RGB(255, 255, 255),                       // Time 白色背景，蓝色文字
+		},
 	}
 
 	for level := range logConfig.StdoutLevels {
@@ -182,23 +194,46 @@ func (l *Logger) processLogs() {
 func (l *Logger) writeLog(entry *logEntry, stdout io.Writer) {
 	msg := l.formatMessage(entry)
 	if _, ok := l.stdoutMap[entry.level]; ok {
-		fmt.Fprintln(stdout, msg) // 更快的标准输出
+		if l.writer.logConfig.ColorOutput && stdout == os.Stderr {
+			fmt.Fprintln(stdout, msg) // Color is already applied in formatMessage
+		} else {
+			fmt.Fprintln(stdout, msg)
+		}
 	}
 
 	if l.writer.logConfig.FileWriterOnly {
 		return
 	}
 
-	if _, err := l.writer.Write([]byte(msg + "\n")); err != nil {
+	// Write plain text to file (without color codes)
+	plainMsg := l.formatPlainMessage(entry)
+	if _, err := l.writer.Write([]byte(plainMsg + "\n")); err != nil {
 		log.Printf("log write failed: %v", err)
 	}
-	defer func() {
-		recover()
-	}()
+
 	if entry.level == ERROR {
 		os.Exit(1)
-		panic(msg)
 	}
+}
+
+func (l *Logger) formatPlainMessage(entry *logEntry) string {
+	now := time.Now()
+	var msg string
+
+	if entry.format == "" {
+		msg = fmt.Sprint(entry.args...)
+	} else {
+		msg = fmt.Sprintf(entry.format, entry.args...)
+	}
+	if entry.level == -1 {
+		return fmt.Sprintf("%s", msg)
+	}
+
+	return fmt.Sprintf("[PHRYNUS][%s %s][%s] %s",
+		now.Format("2006/01/02"),
+		now.Format("15:04:05.000000"),
+		levelNames[entry.level],
+		msg)
 }
 
 func (l *Logger) formatMessage(entry *logEntry) string {
@@ -209,6 +244,21 @@ func (l *Logger) formatMessage(entry *logEntry) string {
 		msg = fmt.Sprint(entry.args...)
 	} else {
 		msg = fmt.Sprintf(entry.format, entry.args...)
+	}
+	if entry.level == -1 {
+		return fmt.Sprintf("%s", msg)
+	}
+
+	if l.writer.logConfig.ColorOutput {
+		levelPart := fmt.Sprintf("[%s]", levelNames[entry.level])
+		coloredLevel := l.colorMap[entry.level].Sprint(levelPart)
+		timePart := fmt.Sprintf("[%s %s]", now.Format("2006/01/02"), now.Format("15:04:05.000000"))
+		coloredTime := l.colorMap[5].Sprint(timePart)
+		return fmt.Sprintf("%s%s%s %s",
+			l.colorMap[4].Sprint("[PHRYNUS]"),
+			coloredTime,
+			coloredLevel,
+			msg)
 	}
 
 	return fmt.Sprintf("[PHRYNUS][%s %s][%s] %s",
@@ -248,14 +298,12 @@ func (l *Logger) Info(args ...interface{})  { l.log(INFO, "", args...) }
 func (l *Logger) Warn(args ...interface{})  { l.log(WARN, "", args...) }
 func (l *Logger) Error(args ...interface{}) { l.log(ERROR, "", args...) }
 
-// func (l *Logger) Panic(args ...interface{}) { l.log(PANIC, "", args...) }
+func (l *Logger) T(args ...interface{}) { l.log(-1, "", args...) }
 
 func (l *Logger) Debugf(format string, args ...interface{}) { l.log(DEBUG, format, args...) }
 func (l *Logger) Infof(format string, args ...interface{})  { l.log(INFO, format, args...) }
 func (l *Logger) Warnf(format string, args ...interface{})  { l.log(WARN, format, args...) }
 func (l *Logger) Errorf(format string, args ...interface{}) { l.log(ERROR, format, args...) }
-
-// func (l *Logger) Panicf(format string, args ...interface{}) { l.log(PANIC, format, args...) }
 
 func (l *Logger) log(level int, format string, args ...interface{}) {
 	entry := &logEntry{
