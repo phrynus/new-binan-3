@@ -196,6 +196,7 @@ func (l *Logger) writeLog(entry *logEntry, stdout io.Writer) {
 		recover()
 	}()
 	if entry.level == ERROR {
+		os.Exit(1)
 		panic(msg)
 	}
 }

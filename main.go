@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -16,6 +19,7 @@ func init() {
 		BufferSize:    1000,
 		FlushInterval: 5 * time.Second,
 		StdoutLevels: map[int]bool{
+			0: true,
 			1: true,
 			2: true,
 			3: true,
@@ -27,10 +31,11 @@ func init() {
 }
 func main() {
 	defer logger.Close() // 关闭日志文件
-	// 常规日志
-	logger.Info("System initialized")
-	logger.Debug("Cache hits:", 2450, " misses:", 12)
-	logger.Warnf("Connection attempt %d failed", 3)
-	logger.Error("Database connection lost")
+	
 
+	// 监听 OS 信号，优雅退出
+	sigC := make(chan os.Signal, 1)
+	signal.Notify(sigC, os.Interrupt, syscall.SIGTERM)
+	<-sigC
+	logger.Error("正在关闭...")
 }
