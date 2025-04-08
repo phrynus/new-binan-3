@@ -254,14 +254,14 @@ func (l *Logger) formatMessage(entry *logEntry) string {
 		coloredLevel := l.colorMap[entry.level].Sprint(levelPart)
 		timePart := fmt.Sprintf("[%s %s]", now.Format("2006/01/02"), now.Format("15:04:05.000000"))
 		coloredTime := l.colorMap[5].Sprint(timePart)
-		return fmt.Sprintf("%s%s%s %s",
+		return fmt.Sprintf("%s%s%s %s\n",
 			l.colorMap[4].Sprint("[PHRYNUS]"),
 			coloredTime,
 			coloredLevel,
 			msg)
 	}
 
-	return fmt.Sprintf("[PHRYNUS][%s %s][%s] %s",
+	return fmt.Sprintf("[PHRYNUS][%s %s][%s] %s \n",
 		now.Format("2006/01/02"),
 		now.Format("15:04:05.000000"),
 		levelNames[entry.level],
