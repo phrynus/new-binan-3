@@ -81,8 +81,8 @@ func LoggerNew(logConfig LogConfig) (*Logger, error) {
 			DEBUG: color.BgRGB(55, 66, 250).AddRGB(255, 255, 255), // 蓝色背景，白色文字
 			WARN:  color.BgRGB(255, 128, 0).AddRGB(255, 255, 255), // 黄色背景，白色文字
 			ERROR: color.BgRGB(231, 76, 60).AddRGB(255, 255, 255), // 红色背景，白色文字
-			4:     color.RGB(255, 255, 255),                       // Title 白色背景，黑色文字
-			5:     color.RGB(255, 255, 255),                       // Time 白色背景，蓝色文字
+			4:     color.RGB(97, 97, 97),                          // Title 白色文字
+			5:     color.RGB(97, 97, 97),                          // Time 白色文字
 		},
 	}
 
@@ -252,7 +252,7 @@ func (l *Logger) formatMessage(entry *logEntry) string {
 	if l.writer.logConfig.ColorOutput {
 		levelPart := fmt.Sprintf("[%s]", levelNames[entry.level])
 		coloredLevel := l.colorMap[entry.level].Sprint(levelPart)
-		timePart := fmt.Sprintf("[%s %s]", now.Format("2006/01/02"), now.Format("15:04:05.000000"))
+		timePart := fmt.Sprintf("[%s %s]", now.Format("2006-01-02"), now.Format("15:04:05.000000"))
 		coloredTime := l.colorMap[5].Sprint(timePart)
 		return fmt.Sprintf("%s%s%s %s\n",
 			l.colorMap[4].Sprint("[PHRYNUS]"),
@@ -262,7 +262,7 @@ func (l *Logger) formatMessage(entry *logEntry) string {
 	}
 
 	return fmt.Sprintf("[PHRYNUS][%s %s][%s] %s \n",
-		now.Format("2006/01/02"),
+		now.Format("2006-01-02"),
 		now.Format("15:04:05.000000"),
 		levelNames[entry.level],
 		msg)

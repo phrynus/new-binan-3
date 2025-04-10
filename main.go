@@ -85,14 +85,17 @@ func init() {
 			}
 		}
 	}
-	logger.Info(infoSymbolsString)
+	// logger.Info(infoSymbolsString)
 }
 func main() {
 	defer logger.Close() // 关闭日志文件
-	logger.Info("系统启动完成")
-	logger.Debug("调试信息: 用户登录")
-	logger.Warn("磁盘空间不足")
-	// logger.Error("数据库连接失败")
+
+	// go func() {
+	// 	for {
+
+	// 	}
+	// }()
+
 	// 监听 OS 信号，优雅退出
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt, syscall.SIGTERM)
